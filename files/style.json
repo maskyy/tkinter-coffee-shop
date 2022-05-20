@@ -1,0 +1,23 @@
+{
+    "TLabel": {
+        "font": "Ubuntu 20"
+    },
+    "TButton": {
+        "font": "Ubuntu 20",
+        "pad": ["5m", "3m"]
+    },
+    "TEntry": {
+        "font": "Roboto 20"
+    },
+    "TNotebook.Tab": {
+        "font": "Ubuntu 20"
+    },
+    "Treeview": {
+        "font": "Roboto 16",
+        "rowheight": 30
+    },
+    "Treeview.Heading": {
+        "font": "Ubuntu 16 bold",
+        "rowheight": 30
+    }
+}

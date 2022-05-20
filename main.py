@@ -23,13 +23,16 @@ class MainWindow(RootWindow):
     def create_widgets(self):
         logo.get_label(self).pack()
 
-        check_credentials = lambda l, p: Login.check_credentials(l, p, self.open_window)
+        check_credentials = lambda d, l, p: Login.check_credentials(
+            d, l, p, self.open_window
+        )
         login_window = Login(
             self,
             [
                 ("Зарегистрироваться", Login.register),
                 ("Войти", check_credentials),
-            ], self._db
+            ],
+            self._db,
         )
         login_window.pack()
         login_window.login.focus()

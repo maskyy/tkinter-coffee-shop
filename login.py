@@ -1,5 +1,6 @@
 import enum as _enum
 import functools as _ft
+import hashlib as _hash
 import tkinter.messagebox as _msg
 import tkinter.ttk as _ttk
 
@@ -9,34 +10,41 @@ import util
 __all__ = ["Roles", "Login"]
 
 
+def _get_hash(s):
+    return _hash.sha256(s.encode()).hexdigest()
+
+
 class Roles(_enum.Enum):
     ADMIN = "admin"
     CASHIER = "cashier"
 
 
 class Login(_ttk.Frame):
-    def register(login, password):
+    def register(db, login, password):
         login, password = login.get_strip(), password.get_strip()
         if not login or not password:
             return util.show_error("Введите логин и пароль")
-        if login in _credentials:
+
+        if db.get_user(login) is not None:
             return util.show_error("Логин уже занят")
 
         answer = _msg.askquestion("Роль", "Да - администратор, нет - кассир")
         role = Roles.ADMIN if answer == "yes" else Roles.CASHIER
-        _credentials[login] = (password, role)
+        db.register_user(login, _get_hash(password), role.value)
         _msg.showinfo("Регистрация", "Регистрация успешна")
         return True
 
-    def check_credentials(login_entry, password_entry, handler):
+    def check_credentials(db, login_entry, password_entry, handler):
         login, password = login_entry.get_strip(), password_entry.get_strip()
         if not login or not password:
             return util.show_error("Введите логин и пароль")
-        if login not in _credentials:
+
+        user_data = db.get_user(login)
+        if user_data is None:
             return util.show_error("Логин не существует")
 
-        password2, role = _credentials[login]
-        if password != password2:
+        password2, role = user_data
+        if _get_hash(password) != password2:
             return util.show_error("Неверный пароль")
 
         handler(role)
@@ -46,16 +54,9 @@ class Login(_ttk.Frame):
 
     def __init__(self, master=None, actions=None, db=None):
         super().__init__(master)
-        self._db = db
-        self.read_credentials()
-        self.create_widgets(actions)
+        self.create_widgets(actions, db)
 
-    def read_credentials(self):
-        logins = self._db.get_table("logins")
-        print(logins)
-        pass
-
-    def create_widgets(self, actions):
+    def create_widgets(self, actions, db):
         _ttk.Label(self, text="Логин").pack()
         self.login = login = style.Entry(self)
         login.pack(pady=5)
@@ -67,7 +68,10 @@ class Login(_ttk.Frame):
         self.buttons = []
         for name, action in actions:
             btn = style.Button(
-                self, text=name, command=_ft.partial(action, login, password), width=20
+                self,
+                text=name,
+                command=_ft.partial(action, db, login, password),
+                width=20,
             )
             btn.pack(pady=5)
             self.buttons.append(btn)

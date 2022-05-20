@@ -58,6 +58,7 @@ PRAGMA analysis_limit = 1000;
 PRAGMA optimize;
 """
 
+
 class Database:
     _connection = None
 
@@ -99,6 +100,12 @@ class Database:
         self._cur.execute("SELECT password, role FROM logins WHERE login = ?", (login,))
         result = self._cur.fetchone()
         return result
+
+    def register_user(self, login, password, role):
+        self._cur.execute(
+            "INSERT INTO logins VALUES (?, ?, ?)", (login, password, role)
+        )
+
 
 """
     def add_product(self, *args):

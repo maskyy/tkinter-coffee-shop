@@ -17,17 +17,18 @@ CREATE TABLE IF NOT EXISTS clients (
     phone TEXT NOT NULL,
     name TEXT NOT NULL,
     bonuses INTEGER NOT NULL DEFAULT 0 CHECK(bonuses >= 0),
-    code TEXT NOT NULL
+    bonus_code TEXT NOT NULL
 ) STRICT;
 
 CREATE TABLE IF NOT EXISTS goods (
     id INTEGER PRIMARY KEY,
-    name TEXT NOT NULL,
+    name TEXT NOT NULL UNIQUE,
     manufacturer TEXT NOT NULL,
     amount INTEGER NOT NULL DEFAULT 0 CHECK(amount >= 0),
     sell_price INTEGER NOT NULL DEFAULT 0 CHECK(sell_price >= 0),
     use_by TEXT NOT NULL,
-    purchase_price INTEGER NOT NULL DEFAULT 0 CHECK(purchase_price >= 0)
+    purchase_price INTEGER NOT NULL DEFAULT 0 CHECK(purchase_price >= 0),
+    bonuses INTEGER NOT NULL DEFAULT 0 CHECK(bonuses >= 0)
 ) STRICT;
 
 CREATE TABLE IF NOT EXISTS checks (
@@ -42,6 +43,7 @@ CREATE TABLE IF NOT EXISTS sales (
     amount INTEGER NOT NULL DEFAULT 0 CHECK(amount > 0),
     sell_date TEXT NOT NULL,
     client_id INTEGER DEFAULT NULL,
+    return_goods INTEGER NOT NULL DEFAULT 1,
     FOREIGN KEY(check_id) REFERENCES checks(id) ON DELETE CASCADE,
     FOREIGN KEY(product_id) REFERENCES goods(id) ON UPDATE CASCADE 
 ) STRICT;
@@ -106,6 +108,9 @@ class Database:
             "INSERT INTO logins VALUES (?, ?, ?)", (login, password, role)
         )
 
+    def get_new_check_id(self):
+        result = self._cur.execute("SELECT MAX(id)+1 FROM checks").fetchone()[0]
+        return 1 if not result else result
 
 """
     def add_product(self, *args):
@@ -135,10 +140,6 @@ class Database:
         self._cur.execute(
             "UPDATE goods SET amount = ? WHERE barcode = ?", (new, barcode)
         )
-
-    def get_new_check_id(self):
-        result = self._cur.execute("SELECT MAX(id)+1 FROM checks").fetchone()[0]
-        return 1 if not result else result
 
     def add_check(self, id_, sum_):
         self._cur.execute("INSERT INTO checks VALUES (?, ?)", (id_, sum_))

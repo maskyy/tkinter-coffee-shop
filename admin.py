@@ -6,7 +6,6 @@ import tkinter.ttk as _ttk
 import logo
 import util
 from db_sqlite import Database
-from hint import Hint
 from style import Button, Entry
 from tableview import TableView
 from tabs import Tabs
@@ -32,7 +31,7 @@ class Admin(Window):
             "Количество",
             "Цена",
         ]
-
+        return
         self.create_widgets()
 
     def create_widgets(self):
@@ -52,11 +51,6 @@ class Admin(Window):
         self.goods.update_data()
         self.goods.pack(expand=True, fill="both", padx=20, pady=20)
         Button(frame, text="Обновить", command=self.goods.update_data).pack(pady=15)
-        Hint(
-            frame,
-            hint="""В данном окне показана таблица всех товаров в магазине.
-Чтобы обновить таблицу, можно нажать соответствующую кнопку.""",
-        ).pack()
         return frame
 
     def create_delivery(self, master):
@@ -73,19 +67,6 @@ class Admin(Window):
         Button(subframe, text="Завершить поставку", command=self.make_delivery).pack(
             pady=40
         )
-        Hint(
-            subframe,
-            hint="""Чтобы добавить новый товар, введите все его данные:
-- штрихкод из 13 цифр
-- название товара
-- производитель
-- количество товара (не меньше 0)
-- цена одного товара (не меньше 0)
-
-Если товар существует, можно либо увеличить его количество, либо обновить его данные
-
-Для завершения поставки необходимо нажать соответствующую кнопку.""",
-        ).pack(pady=30)
 
         return frame
 
@@ -198,13 +179,6 @@ class Admin(Window):
         Button(frame, text="Сбросить выручку", command=self.on_reset).grid(
             column=0, row=3, pady=10
         )
-
-        Hint(
-            frame,
-            hint="""В этом окне показаны все чеки и проданные товары, а также выручка.
-Чтобы вернуть чеки и/или товары, выберите их в таблице (можно выбрать несколько через Shift или Ctrl).
-Чтобы сбросить выручку (удалить все чеки и товары), нужно нажать соответствующую кнопку.""",
-        ).grid(column=0, row=4, pady=10)
 
         self.update_sales()
 

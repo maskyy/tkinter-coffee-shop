@@ -1,22 +1,20 @@
 #!/usr/bin/env python3
 import sys
 
+import cashier
 import logo
 import util
-from admin import Admin
-from cashier import Cashier
+import style
+import window
 from db_sqlite import Database
-from hint import Hint
 from login import Login, Roles
-from style import init_style
-from window import RootWindow
 
 
-class MainWindow(RootWindow):
+class MainWindow(window.RootWindow):
     def __init__(self):
-        super().__init__("ATAC")
+        super().__init__("Cinnabon")
         logo.create_image()
-        init_style()
+        style.init_style()
         self._db = Database()
         self.create_widgets()
 
@@ -40,23 +38,14 @@ class MainWindow(RootWindow):
             "<Return>", lambda _: login_window.buttons[1].invoke()
         )
 
-        Hint(
-            self,
-            hint="Введите логин и пароль кассира или администратора либо зарегистрируйтесь.",
-        ).pack()
-
         if len(sys.argv) >= 3:
             login_window.login.insert(0, sys.argv[1])
             login_window.password.insert(0, sys.argv[2])
             login_window.buttons[1].invoke()
 
     def open_window(self, role):
-        if role == Roles.ADMIN:
-            admin = Admin()
-            util.set_close_handler(admin, lambda: self.close_handler(admin))
-        else:
-            cashier = Cashier()
-            util.set_close_handler(cashier, lambda: self.close_handler(cashier))
+        win = cashier.Cashier(role == Roles.ADMIN)
+        util.set_close_handler(win, lambda: self.close_handler(win))
         self.withdraw()
 
     def close_handler(self, win):

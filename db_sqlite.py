@@ -28,12 +28,15 @@ CREATE TABLE IF NOT EXISTS goods (
     sell_price INTEGER NOT NULL DEFAULT 0 CHECK(sell_price >= 0),
     use_by TEXT NOT NULL,
     purchase_price INTEGER NOT NULL DEFAULT 0 CHECK(purchase_price >= 0),
-    bonuses INTEGER NOT NULL DEFAULT 0 CHECK(bonuses >= 0)
+    bonuses INTEGER NOT NULL DEFAULT 0 CHECK(bonuses >= 0),
+    returnable INTEGER NOT NULL DEFAULT 1
 ) STRICT;
 
 CREATE TABLE IF NOT EXISTS checks (
     id INTEGER PRIMARY KEY,
-    sum INTEGER NOT NULL DEFAULT 0 CHECK(sum >= 0)
+    sum INTEGER NOT NULL DEFAULT 0 CHECK(sum >= 0),
+    client_id INTEGER DEFAULT NULL,
+    FOREIGN KEY(client_id) REFERENCES clients(id) ON UPDATE CASCADE
 ) STRICT;
 
 CREATE TABLE IF NOT EXISTS sales (
@@ -42,8 +45,6 @@ CREATE TABLE IF NOT EXISTS sales (
     product_id INTEGER,
     amount INTEGER NOT NULL DEFAULT 0 CHECK(amount > 0),
     sell_date TEXT NOT NULL,
-    client_id INTEGER DEFAULT NULL,
-    return_goods INTEGER NOT NULL DEFAULT 1,
     FOREIGN KEY(check_id) REFERENCES checks(id) ON DELETE CASCADE,
     FOREIGN KEY(product_id) REFERENCES goods(id) ON UPDATE CASCADE 
 ) STRICT;
@@ -111,6 +112,7 @@ class Database:
     def get_new_check_id(self):
         result = self._cur.execute("SELECT MAX(id)+1 FROM checks").fetchone()[0]
         return 1 if not result else result
+
 
 """
     def add_product(self, *args):

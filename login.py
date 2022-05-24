@@ -44,7 +44,6 @@ class Login(_ttk.Frame):
             return util.show_error("Логин не существует")
 
         password2, role = user_data
-        print(_get_hash(password))
         if _get_hash(password) != password2:
             return util.show_error("Неверный пароль")
 

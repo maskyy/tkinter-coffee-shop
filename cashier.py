@@ -60,9 +60,9 @@ class Cashier(Window):
         self._goods.grid(column=0, row=1, sticky="nsew", padx=20)
         self._goods.update_data()
 
-        entry_frame = _ttk.Frame(frame)
-        self.create_entries(entry_frame)
-        entry_frame.grid(column=0, row=2)
+        self._sell_frame = _ttk.Frame(frame)
+        self.create_entries(self._sell_frame)
+        self._sell_frame.grid(column=0, row=2)
 
         self._check = TableView(
             frame, columns=["Наименование", "Количество", "Стоимость"]
@@ -72,6 +72,7 @@ class Cashier(Window):
         check_frame = _ttk.Frame(frame)
         check_frame.grid(column=1, row=2)
 
+        self.create_search_frame(frame)
         self.create_confirm_window()
 
         self._check_sum = 0
@@ -94,7 +95,6 @@ class Cashier(Window):
         self.add = Button(master, text="Добавить", command=self.on_add_item)
         self.add.grid(column=0, row=2, columnspan=2, pady=5)
 
-        self.create_search_window()
         Button(master, text="Поиск", command=self.toggle_search).grid(
             column=0, row=3, columnspan=3, pady=5
         )
@@ -102,20 +102,24 @@ class Cashier(Window):
         self._name.bind("<Return>", lambda _: self.add.invoke())
         self._amount.bind("<Return>", lambda _: self.add.invoke())
 
-    def create_search_window(self):
-        win = self._search_window = _tk.Toplevel(self)
-        win.title("Поиск")
-        last_row = self.create_search_entries(win)
-        Button(win, text="Искать", command=self.on_search).grid(
+    def create_search_frame(self, master):
+        frame = self._search_frame = _ttk.Frame(master)
+        last_row = self.create_search_entries(frame)
+        Button(frame, text="Искать", command=self.on_search).grid(
             column=0, row=last_row, columnspan=2, pady=10
         )
-        Button(win, text="Сбросить поиск", command=self.clear_search).grid(
+        Button(frame, text="Сбросить поиск", command=self.clear_search).grid(
             column=0, row=last_row + 1, columnspan=2, pady=10
         )
         self._hidden_items = []
-        win.withdraw()
+
+    def validate_search(self):
+        return False
 
     def on_search(self):
+        if not self.validate_search():
+            return
+
         index = 1
         item = self._goods.get_children()[index]
         self._goods.detach(item)
@@ -124,21 +128,27 @@ class Cashier(Window):
     def clear_search(self):
         for item, index in self._hidden_items:
             self._goods.reattach(item, "", index)
-        pass
+        for e in self._search_entries:
+            e.delete(0, "end")
+        self.toggle_search()
 
     def create_search_entries(self, master):
-        entries = []
+        self._search_entries = entries = []
+
         for i in range(len(self._goods_cols)):
             _ttk.Label(master, text=self._goods_cols[i], pad=5).grid(column=0, row=i)
             e = Entry(master)
+            entries.append(e)
             e.grid(column=1, row=i, padx=5, pady=5)
         return len(self._goods_cols)
 
     def toggle_search(self):
-        if self._search_window.winfo_ismapped():
-            self._search_window.withdraw()
+        if self._sell_frame.winfo_ismapped():
+            self._sell_frame.grid_forget()
+            self._search_frame.grid(column=0, row=2)
             return
-        self._search_window.deiconify()
+        self._search_frame.grid_forget()
+        self._sell_frame.grid(column=0, row=2)
 
     def create_returns(self, master):
         frame = _ttk.Frame(master)

@@ -44,7 +44,7 @@ class MainWindow(window.RootWindow):
             login_window.buttons[1].invoke()
 
     def open_window(self, role):
-        win = cashier.Cashier(role == Roles.ADMIN)
+        win = cashier.Cashier(role == Roles.ADMIN.value)
         util.set_close_handler(win, lambda: self.close_handler(win))
         self.withdraw()
 

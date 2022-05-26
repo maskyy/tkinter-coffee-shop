@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS goods (
 CREATE TABLE IF NOT EXISTS checks (
     id INTEGER PRIMARY KEY,
     sum INTEGER NOT NULL DEFAULT 0 CHECK(sum >= 0),
+    bonuses INTEGER NOT NULL DEFAULT 0 CHECK(bonuses >= 0),
     client_id INTEGER DEFAULT NULL,
     FOREIGN KEY(client_id) REFERENCES clients(id) ON UPDATE CASCADE
 ) STRICT;
@@ -118,8 +119,11 @@ class Database:
         result = self._cur.execute("SELECT MAX(id)+1 FROM checks").fetchone()[0]
         return 1 if not result else result
 
-    def add_check(self, id_, sum_, client):
-        self._cur.execute("INSERT INTO checks VALUES (?, ?, ?)", (id_, sum_, client))
+    def add_check(self, id_, sum_, bonuses, client):
+        if bonuses is None:
+            bonuses = 0
+        sum_ -= bonuses * 10
+        self._cur.execute("INSERT INTO checks VALUES (?, ?, ?, ?)", (id_, sum_, bonuses, client))
 
     def change_by_amount(self, id_, amount):
         self._cur.execute("SELECT amount FROM goods WHERE id = ?", (id_,))
@@ -145,12 +149,12 @@ class Database:
         self._cur.execute("DELETE FROM sales WHERE check_id = ?", (check_id,))
 
     def return_sale(self, id_):
-        self._cur.execute("SELECT check_id FROM sales WHERE id = ?", (id_,))
-        check_id = self._cur.fetchone()
-        if not check_id:
+        self._cur.execute("SELECT check_id, sum, bonuses FROM sales WHERE id = ?", (id_,))
+        data = self._cur.fetchone()
+        if not data:
             print("Check not found!")
             return False
-        check_id = check_id[0]
+        check_id, sum_, bonuses = data
 
         self._cur.execute("SELECT product_id, amount FROM sales WHERE id = ?", (id_,))
         product_id, amount = self._cur.fetchone()
@@ -159,6 +163,11 @@ class Database:
 
         if returnable:
             self.change_by_amount(product_id, amount)
+
+        if sum_ - amount * sell_price < 0:
+            sum_ += bonuses * 10
+            self._cur.execute("UPDATE checks SET bonuses = 0 WHERE id = ?", (check_id,))
+
         self._cur.execute(
             "UPDATE checks SET sum = sum - ? WHERE id = ?", (amount * sell_price, check_id)
         )

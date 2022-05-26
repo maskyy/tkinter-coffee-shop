@@ -302,10 +302,12 @@ class Cashier(Window):
         self.confirm_return.pack()
         self.confirm_window.withdraw()
 
-    def create_bonus_window(self):
-        self._bonus_window = _tk.Toplevel(self)
+    def create_bonus_window(self, bonuses):
+        self._bonus_window = win = _tk.Toplevel(self)
         self._bonus_window.overrideredirect(True)
-        
+        bonuses = _tk.Scale(win, from_=0, to=bonuses, tickinterval=bonuses, resolution=1, font="Ubuntu 16")
+        bonuses.pack()
+        Button(win, text="Использовать бонусы", command=lambda: self.on_sell(bonuses.get())).pack()
 
     def find_row(self, table, name):
         for row in table.get_children():
@@ -351,7 +353,7 @@ class Cashier(Window):
         cost = amount * self._goods.item(row)["values"][4]
         self._check.insert("", "end", values=(name, amount, cost))
 
-    def on_sell(self):
+    def on_sell(self, use_bonuses=None):
         if len(self._check.get_children()) == 0:
             return util.show_error("В чеке нет товаров")
         if len(self._client_code.get_strip()) == 0:
@@ -365,7 +367,16 @@ class Cashier(Window):
                 return util.show_error("Клиент не найден")
             client_id, bonuses = data
 
-        self.db.add_check(self._check_id, self._check_sum, client_id)
+        if client is not None and use_bonuses is None and bonuses > 0:
+            if _msg.askyesno("Бонусы", "Хотите использовать до %d бонусов?" % bonuses):
+                self.create_bonus_window()
+                return
+        elif use_bonuses >= 0:
+            self._bonus_window.destroy()
+
+        use_bonuses = 0 if use_bonuses is None else use_bonuses
+
+        self.db.add_check(self._check_id, self._check_sum, use_bonuses, client_id)
         for row in self._check.get_children():
             values = self._check.item(row)["values"]
             product_id = self.find_row(self._goods, values[0])[1][0]
@@ -376,7 +387,9 @@ class Cashier(Window):
         self._check.clear()
         self.db.save()
 
-        util.show_info("Чек №%d на сумму %d" % (self._check_id, self._check_sum))
+        self._check_sum -= use_bonuses * 10
+        util.show_info("Чек №%d на сумму %d (%d бонусов)" % (self._check_id, self._check_sum))
+
         self.update_check_id()
         self.update_check_sum()
         if self._is_admin:

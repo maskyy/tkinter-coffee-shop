@@ -16,6 +16,7 @@ class MainWindow(window.RootWindow):
         logo.create_image()
         style.init_style()
         self._db = Database()
+        self._db.generate_codes()
         self.create_widgets()
 
     def create_widgets(self):

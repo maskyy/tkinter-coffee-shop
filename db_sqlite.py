@@ -1,5 +1,9 @@
+import datetime as _dt
 import os.path as _path
+import random as _rnd
 import sqlite3 as _sql
+
+import dates as _dates
 
 __all__ = ["Database"]
 
@@ -17,7 +21,8 @@ CREATE TABLE IF NOT EXISTS clients (
     phone TEXT NOT NULL,
     name TEXT NOT NULL,
     bonuses INTEGER NOT NULL DEFAULT 0 CHECK(bonuses >= 0),
-    bonus_code TEXT NOT NULL
+    bonus_code TEXT NOT NULL,
+    code_date TEXT NOT NULL
 ) STRICT;
 
 CREATE TABLE IF NOT EXISTS goods (
@@ -113,6 +118,69 @@ class Database:
         result = self._cur.execute("SELECT MAX(id)+1 FROM checks").fetchone()[0]
         return 1 if not result else result
 
+    def add_check(self, id_, sum_, client):
+        self._cur.execute("INSERT INTO checks VALUES (?, ?, ?)", (id_, sum_, client))
+
+    def change_by_amount(self, id_, amount):
+        self._cur.execute("SELECT amount FROM goods WHERE id = ?", (id_,))
+        current = self._cur.fetchone()
+        if not current:
+            print("Item not found!")
+            return False
+        new = current[0] + amount
+        self._cur.execute(
+            "UPDATE goods SET amount = ? WHERE id = ?", (new, id_)
+        )
+
+    def sell_product(self, check_id, product_id, amount):
+        self.change_by_amount(product_id, -amount)
+
+        self._cur.execute(
+            "INSERT INTO sales VALUES (NULL, ?, ?, ?, date())",
+            (check_id, product_id, amount),
+        )
+
+    def return_check(self, check_id):
+        self._cur.execute("DELETE FROM checks WHERE id = ?", (check_id,))
+        self._cur.execute("DELETE FROM sales WHERE check_id = ?", (check_id,))
+
+    def return_sale(self, id_):
+        self._cur.execute("SELECT check_id FROM sales WHERE id = ?", (id_,))
+        check_id = self._cur.fetchone()
+        if not check_id:
+            print("Check not found!")
+            return False
+        check_id = check_id[0]
+
+        self._cur.execute("SELECT product_id, amount FROM sales WHERE id = ?", (id_,))
+        product_id, amount = self._cur.fetchone()
+        self._cur.execute("SELECT sell_price, returnable FROM goods WHERE id = ?", (product_id,))
+        sell_price, returnable = self._cur.fetchone()
+
+        if returnable:
+            self.change_by_amount(product_id, amount)
+        self._cur.execute(
+            "UPDATE checks SET sum = sum - ? WHERE id = ?", (amount * sell_price, check_id)
+        )
+        self._cur.execute("DELETE FROM sales WHERE id = ?", (id_,))
+
+    def generate_codes(self):
+        self._cur.execute("SELECT id, bonus_code, code_date FROM clients")
+        results = [list(row) for row in self._cur.fetchall()]
+        today = _dt.date.today()
+        for row in results:
+            date = _dates.to_date(row[2])
+            if not date or date < today:
+                row[1] = str(_rnd.randint(1000000, 1999999))[1:]
+                row[2] = _dates.from_date(today)
+            self._cur.execute("UPDATE clients SET bonus_code = ?, code_date = ? WHERE id = ?", (row[1], row[2], row[0]))
+        print("Codes:", results)
+        self.save()
+
+    def get_client_by_code(self, code):
+        self._cur.execute("SELECT id, bonuses FROM clients WHERE bonus_code = ?", (code,))
+        result = self._cur.fetchone()
+        return result if result else None
 
 """
     def add_product(self, *args):
@@ -130,21 +198,6 @@ class Database:
         data = tuple(data)
         set_str = set_str[:-2]
         self._cur.execute("UPDATE goods SET %s WHERE barcode = ?" % set_str, data)
-
-    def change_by_amount(self, barcode, amount):
-        self._cur.execute("SELECT amount FROM goods WHERE barcode = ?", (barcode,))
-        _current = self._cur.fetchone()
-        if not _current:
-            print("Item not found!")
-            return False
-        _current = _current[0]
-        new = _current + amount
-        self._cur.execute(
-            "UPDATE goods SET amount = ? WHERE barcode = ?", (new, barcode)
-        )
-
-    def add_check(self, id_, sum_):
-        self._cur.execute("INSERT INTO checks VALUES (?, ?)", (id_, sum_))
 
     def sell_product(self, check_id, barcode, amount, cost):
         """ """
@@ -167,26 +220,6 @@ class Database:
             "UPDATE checks SET sum = sum + ? WHERE id = ?", (cost, check_id)
         )
         """ """
-
-    def return_check(self, check_id):
-        self._cur.execute("DELETE FROM checks WHERE id = ?", (check_id,))
-        self._cur.execute("DELETE FROM sales WHERE check_id = ?", (check_id,))
-
-    def return_sale(self, id_):
-        self._cur.execute("SELECT check_id FROM sales WHERE id = ?", (id_,))
-        check_id = self._cur.fetchone()
-        if not check_id:
-            print("Check not found!")
-            return False
-        check_id = check_id[0]
-        self._cur.execute("SELECT barcode, amount, cost FROM sales WHERE id = ?", (id_,))
-        barcode, amount, cost = self._cur.fetchone()
-
-        self.change_by_amount(barcode, amount)
-        self._cur.execute(
-            "UPDATE checks SET sum = sum - ? WHERE id = ?", (cost, check_id)
-        )
-        self._cur.execute("DELETE FROM sales WHERE id = ?", (id_,))
 
     def reset_sales(self):
         self._cur.executescript("DELETE FROM sales; DELETE FROM checks;")

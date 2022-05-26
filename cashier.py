@@ -52,9 +52,10 @@ class Cashier(Window):
             "Цена",
             "Годен до",
             "Закупочная цена",
+            "Бонусы",
         ]
         self._goods_cols = display_columns = [
-            c for c in goods_cols if c != "ID" and c != "Закупочная цена"
+            c for c in goods_cols if c not in ["ID", "Закупочная цена", "Бонусы"]
         ]
         self._goods = TableView(
             frame, self.db, "goods", goods_cols, self.on_good_select
@@ -229,7 +230,9 @@ class Cashier(Window):
         frame.grid_columnconfigure(1, weight=2)
         frame.grid_rowconfigure(0, weight=1)
 
-        self._checks = TableView(frame, self.db, "checks", ["ID чека", "Сумма", "ID клиента"])
+        self._checks = TableView(
+            frame, self.db, "checks", ["ID чека", "Сумма", "Бонусы", "ID клиента"]
+        )
         self._checks.grid(column=0, row=0, sticky="nsew", padx=5, pady=5)
 
         self._sales = TableView(frame, self.db, "sales", column_names)
@@ -305,9 +308,20 @@ class Cashier(Window):
     def create_bonus_window(self, bonuses):
         self._bonus_window = win = _tk.Toplevel(self)
         self._bonus_window.overrideredirect(True)
-        bonuses = _tk.Scale(win, from_=0, to=bonuses, tickinterval=bonuses, resolution=1, font="Ubuntu 16")
+        bonuses = _tk.Scale(
+            win,
+            from_=0,
+            to=bonuses,
+            tickinterval=bonuses,
+            resolution=1,
+            font="Ubuntu 16",
+            orient="horizontal",
+        )
         bonuses.pack()
-        Button(win, text="Использовать бонусы", command=lambda: self.on_sell(bonuses.get())).pack()
+        Button(
+            win, text="Использовать бонусы", command=lambda: self.on_sell(bonuses.get())
+        ).pack()
+        util.center_window(win)
 
     def find_row(self, table, name):
         for row in table.get_children():
@@ -367,29 +381,45 @@ class Cashier(Window):
                 return util.show_error("Клиент не найден")
             client_id, bonuses = data
 
-        if client is not None and use_bonuses is None and bonuses > 0:
+        if client_id is not None and use_bonuses is None and bonuses > 0:
             if _msg.askyesno("Бонусы", "Хотите использовать до %d бонусов?" % bonuses):
-                self.create_bonus_window()
+                self.create_bonus_window(bonuses)
                 return
-        elif use_bonuses >= 0:
+        elif use_bonuses is not None and use_bonuses >= 0:
             self._bonus_window.destroy()
+            self._bonus_window = None
 
         use_bonuses = 0 if use_bonuses is None else use_bonuses
 
         self.db.add_check(self._check_id, self._check_sum, use_bonuses, client_id)
+        add_bonuses = 0
         for row in self._check.get_children():
             values = self._check.item(row)["values"]
-            product_id = self.find_row(self._goods, values[0])[1][0]
+            goods_row = self.find_row(self._goods, values[0])[1]
+            product_id = goods_row[0]
+            if goods_row[-2] > 0:
+                add_bonuses += goods_row[-2]
+                print(add_bonuses)
+
             amount = self._check.item(row)["values"][1]
-            print(product_id)
             self.db.sell_product(self._check_id, product_id, amount)
 
+        if client_id:
+            print("add bonuses")
+            self.db.change_bonuses(client_id, add_bonuses - use_bonuses)
         self._check.clear()
         self.db.save()
 
-        self._check_sum -= use_bonuses * 10
-        util.show_info("Чек №%d на сумму %d (%d бонусов)" % (self._check_id, self._check_sum))
+        if use_bonuses:
+            self._check_sum -= use_bonuses * 10
+        message = "Чек №%d на сумму %d" % (self._check_id, self._check_sum)
+        if client_id and use_bonuses > 0:
+            message += " (бонусов использовано: %d)" % use_bonuses
+        if client_id and add_bonuses > 0:
+            message += "\nНачислено бонусов: %d" % add_bonuses
+        util.show_info(message)
 
+        self._client_code.delete(0, "end")
         self.update_check_id()
         self.update_check_sum()
         if self._is_admin:

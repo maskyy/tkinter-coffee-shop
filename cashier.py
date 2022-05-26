@@ -330,6 +330,8 @@ class Cashier(Window):
         return None, None
 
     def on_good_select(self, _, selected):
+        if len(selected["values"]) < 2:
+            return
         self._name.delete(0, "end")
         self._amount.delete(0, "end")
         self._name.insert(0, selected["values"][1])
@@ -399,13 +401,11 @@ class Cashier(Window):
             product_id = goods_row[0]
             if goods_row[-2] > 0:
                 add_bonuses += goods_row[-2]
-                print(add_bonuses)
 
             amount = self._check.item(row)["values"][1]
             self.db.sell_product(self._check_id, product_id, amount)
 
         if client_id:
-            print("add bonuses")
             self.db.change_bonuses(client_id, add_bonuses - use_bonuses)
         self._check.clear()
         self.db.save()
